@@ -1,18 +1,15 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 /**
- * @title Deal
+ * @title DealETH
  */
-contract Deal {
+contract DealETH {
     event Bought(address _deal, address _seller, address _buyer);
     event Complained(address _deal, address _seller, address _buyer);
     event DealClosed(address _deal, address _seller, address _buyer);
 
     address public immutable seller;
-    IERC20 public immutable currency;
     uint256 public immutable price;
     string public item;
 
@@ -28,7 +25,6 @@ contract Deal {
 
     constructor(
         address _seller,
-        address _currency,
         uint256 _price,
         string memory _item,
         uint256 _deadline,
@@ -38,10 +34,9 @@ contract Deal {
         //after deployment of the DealDeployer insert its address here
         //require(
         //    msg.sender == 0x322813Fd9A801c5507c9de605d63CEA4f2CE6c44,
-        //    "Deal: Deal can be deployed only through DealDeployer.deployDeal()"
+        //    "DealETH: DealETH can be deployed only through DealDeployer.deployDealETH()"
         //);
         seller = _seller;
-        currency = IERC20(_currency);
         price = _price;
         item = _item;
         deadline = _deadline;
@@ -49,30 +44,21 @@ contract Deal {
         judge = _judge;
     }
 
-    function buy() public {
-        require(bought == false, "Deal: Item already bought");
-        require(
-            currency.balanceOf(msg.sender) >= price,
-            "Deal: Insufficent funds to buy"
-        );
-        require(
-            currency.allowance(msg.sender, address(this)) >= price,
-            "Deal: You need to approve some tokens to the contract first"
-        );
+    function buy() public payable {
+        require(bought == false, "DealETH: Item already bought");
+        require(msg.value >= price, "DealETH: Insufficent funds to buy");
 
         buyer = msg.sender;
         buyTime = block.timestamp;
         bought = true;
-
-        currency.transferFrom(msg.sender, address(this), price);
 
         emit Bought(address(this), seller, buyer);
     }
 
     //buyer only
     function confirm() public {
-        require(msg.sender == buyer, "Deal: Only buyer can confirm");
-        require(bought == true, "Deal: You need to buy the item first");
+        require(msg.sender == buyer, "DealETH: Only buyer can confirm");
+        require(bought == true, "DealETH: You need to buy the item first");
 
         transferAndDestroy(seller);
     }
@@ -81,15 +67,15 @@ contract Deal {
     function complain() public {
         require(
             msg.sender == buyer || msg.sender == seller,
-            "Deal: Only buyer or seller can complain"
+            "DealETH: Only buyer or seller can complain"
         );
         require(
             bought == true,
-            "Deal: Item needs to be bought in order to make a complaint"
+            "DealETH: Item needs to be bought in order to make a complaint"
         );
         require(
             block.timestamp >= buyTime + deadline,
-            "Deal: A certain amount of time must pass in order to make a complaint"
+            "DealETH: A certain amount of time must pass in order to make a complaint"
         );
 
         complained = true;
@@ -99,28 +85,31 @@ contract Deal {
 
     //judge only
     function resolve(address receiver) public {
-        require(msg.sender == judge, "Deal: Only judge can resolve");
-        require(complained == true, "Deal: The complaint was not brought");
+        require(msg.sender == judge, "DealETH: Only judge can resolve");
+        require(complained == true, "DealETH: The complaint was not brought");
 
         transferAndDestroy(receiver);
     }
 
     //seller only
     function removeDeal() public {
-        require(msg.sender == seller, "Deal: Only seller can remove the deal");
+        require(
+            msg.sender == seller,
+            "DealETH: Only seller can remove the deal"
+        );
         require(
             bought == false,
-            "Deal: Someone bought your item, deal can't be removed"
+            "DealETH: Someone bought your item, deal can't be removed"
         );
 
         transferAndDestroy(seller);
     }
 
     function transferAndDestroy(address receiver) private {
-        currency.transfer(receiver, currency.balanceOf(address(this)));
-
         emit DealClosed(address(this), seller, buyer);
 
         selfdestruct(payable(receiver));
     }
+
+    receive() external payable {}
 }

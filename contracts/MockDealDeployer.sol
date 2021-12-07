@@ -1,15 +1,15 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Deal.sol";
-import "./DealETH.sol";
+import "./DealDeployer.sol";
+import "./MockDeal.sol";
+import "./MockDealETH.sol";
 
 /**
- * @title DealDeployer
+ * @title MockDealDeployer
+ * WARNING: use only for testing and debugging purpose
  */
-contract DealDeployer is Ownable {
+contract MockDealDeployer {
     event DealDeployed(
         address _dealAddr,
         address _seller,
@@ -25,12 +25,12 @@ contract DealDeployer is Ownable {
         string _item
     );
 
-    mapping(address => address[]) public deals; //seller => deals addresses
-    mapping(address => address[]) public dealsETH;
-
     uint256 public deadline;
     uint256 public penalty; //value in %
     address public judge; //trusted third party choosed by us
+
+    mapping(address => address[]) public deals; //seller => deals addresses
+    mapping(address => address[]) public dealsETH;
 
     constructor(
         uint256 _deadline,
@@ -42,30 +42,7 @@ contract DealDeployer is Ownable {
         judge = _judge;
     }
 
-    function setDeadline(uint256 _deadline) external onlyOwner {
-        //guarantee that we won't set some crazy deadlines in the future
-        require(
-            _deadline >= 1 weeks && _deadline <= 4 weeks,
-            "DealDeployer: Deadline value out of range"
-        );
-        deadline = _deadline;
-    }
-
-    function setPenalty(uint256 _penalty) external onlyOwner {
-        //guarantee that we won't set some crazy penalties in the future
-        require(
-            _penalty >= 1 && _penalty <= 10,
-            "DealDeployer: Penalty value out of range"
-        );
-        penalty = _penalty;
-    }
-
-    function setJudge(address _judge) external onlyOwner {
-        require(_judge != address(0x0));
-        judge = _judge;
-    }
-
-    function deployDeal(
+    function deployMockDeal(
         address _currency,
         uint256 _price,
         string memory _item
@@ -87,7 +64,7 @@ contract DealDeployer is Ownable {
             "DealDeployer: You need to approve some tokens to the contract first"
         );
 
-        Deal dealContract = new Deal(
+        MockDeal dealContract = new MockDeal(
             msg.sender,
             _currency,
             _price,
@@ -109,7 +86,7 @@ contract DealDeployer is Ownable {
         );
     }
 
-    function deployDealETH(uint256 _price, string memory _item)
+    function deployMockDealETH(uint256 _price, string memory _item)
         external
         payable
     {
@@ -123,7 +100,7 @@ contract DealDeployer is Ownable {
             "DealDeployer: Insufficent funds to deposit"
         );
 
-        DealETH dealContract = new DealETH(
+        MockDealETH dealContract = new MockDealETH(
             msg.sender,
             _price,
             _item,
